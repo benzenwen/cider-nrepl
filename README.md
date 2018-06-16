@@ -1,3 +1,30 @@
+# Workaround for Issue #460
+
+_(Credit for this fix goes entirely to
+[Toad-Racer](https://github.com/Toad-Racer))_
+
+tl;dr
+
+1. Clone this repo
+2. `lein install`
+3. `[cider/cider-nrepl "0.18.0-snapshot"]` in `project.clj`
+4. N.B. re-instrument your code after every `c` continue
+
+## Details
+
+See cider-nrepl issue 
+[#460](https://github.com/clojure-emacs/cider-nrepl/issues/460#issuecomment-371327865)
+
+In Cider debugger (currently at cider 0.17.0), hitting `c` continue
+(and other times) causes the debugger to stop honoring breakpoints.
+This workaround fixes that issue at the expense of creating a new one.
+
+The new bug requires that breakpoints be re-applied after each
+run. Restarts of threads may also require re-application. A cider version
+mismatch notice will appear. Your milage may vary.
+
+# CIDER nREPL readme below
+
 [![Build Status](https://travis-ci.org/clojure-emacs/cider-nrepl.png?branch=master)](https://travis-ci.org/clojure-emacs/cider-nrepl)
 [![Dependencies Status](https://versions.deps.co/clojure-emacs/cider-nrepl/status.svg)](https://versions.deps.co/clojure-emacs/cider-nrepl)
 [![Coverage](https://codecov.io/gh/clojure-emacs/cider-nrepl/branch/master/graph/badge.svg)](https://codecov.io/gh/clojure-emacs/cider-nrepl/)

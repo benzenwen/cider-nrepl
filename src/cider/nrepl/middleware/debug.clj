@@ -462,7 +462,8 @@ this map (identified by a key), and will `dissoc` it afterwards."}
                                 ;; top-level sexp, a (= col 1) is much more likely to be
                                 ;; wrong than right.
                                 (update :column #(if (= % 1) 0 %))))
-                    :forms @*tmp-forms*}]
+                    :forms @*tmp-forms*
+                    :skip-breaks (atom nil)}]
      ~@body))
 
 (defn break
@@ -470,19 +471,63 @@ this map (identified by a key), and will `dissoc` it afterwards."}
   Send the result of form and its coordinates to the client and wait for
   response with `read-debug-command`'."
   [coor val locals STATE__]
-  (cond
-    (skip-breaks? coor (get-in STATE__ [:msg :code])) val
-    ;; The length of `coor` is a good indicator of current code
-    ;; depth.
-    (= (:mode @*skip-breaks*) :trace)
-    (do (print-step-indented (count coor) (get-in STATE__ [:forms coor]) val)
-        val)
-    ;; Most common case - ask for input.
-    :else
-    (read-debug-command val (assoc (:msg STATE__)
-                                   :debug-value (pr-short val)
-                                   :coor coor
-                                   :locals locals))))
+  (binding [*skip-breaks* (:skip-breaks STATE__)]
+    (cond
+      (skip-breaks? coor (get-in STATE__ [:msg :code])) val
+      ;; The length of `coor` is a good indicator of current code
+      ;; depth.
+      (= (:mode @*skip-breaks*) :trace)
+      (do (print-step-indented (count coor) (get-in STATE__ [:forms coor]) val)
+          val)
+      ;; Most common case - ask for input.
+      :else
+      (read-debug-command val (assoc (:msg STATE__)
+                                    :debug-value (pr-short val)
+                                    :coor coor
+                                    :locals locals)))))
+
+;; (defmacro with-initial-debug-bindings
+;;   "Let-wrap `body` with STATE__ map containing code, file, line, column etc.
+;;   STATE__ is an anaphoric variable available to all breakpoint macros. Ends with
+;;   __ to avid conflicts with user locals and to signify that it's an internal
+;;   variable which is cleaned in `sanitize-env' along other clojure's
+;;   temporaries."
+;;   {:style/indent 1}
+;;   [& body]
+;;   ;; NOTE: *msg* is the message that instrumented the function,
+;;   `(let [~'STATE__ {:msg ~(let [{:keys [code id file line column ns]} *msg*]
+;;                             (-> {:code code
+;;                                  ;; Passing clojure.lang.Namespace object
+;;                                  ;; as :original-ns breaks nREPL in bewildering
+;;                                  ;; ways.
+;;                                  :original-id id, :original-ns (str (or ns *ns*))
+;;                                  :file file, :line line, :column column}
+;;                                 ;; There's an nrepl bug where the column starts counting
+;;                                 ;; at 1 if it's after the first line. Since this is a
+;;                                 ;; top-level sexp, a (= col 1) is much more likely to be
+;;                                 ;; wrong than right.
+;;                                 (update :column #(if (= % 1) 0 %))))
+;;                     :forms @*tmp-forms*}]
+;;      ~@body))
+
+;; (defn break
+;;   "Breakpoint function.
+;;   Send the result of form and its coordinates to the client and wait for
+;;   response with `read-debug-command`'."
+;;   [coor val locals STATE__]
+;;   (cond
+;;     (skip-breaks? coor (get-in STATE__ [:msg :code])) val
+;;     ;; The length of `coor` is a good indicator of current code
+;;     ;; depth.
+;;     (= (:mode @*skip-breaks*) :trace)
+;;     (do (print-step-indented (count coor) (get-in STATE__ [:forms coor]) val)
+;;         val)
+;;     ;; Most common case - ask for input.
+;;     :else
+;;     (read-debug-command val (assoc (:msg STATE__)
+;;                                    :debug-value (pr-short val)
+;;                                    :coor coor
+;;                                    :locals locals))))
 
 (defn apply-instrumented-maybe
   "Apply var-fn or its instrumented version to args."
